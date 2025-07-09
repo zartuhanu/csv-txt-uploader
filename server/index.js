@@ -11,7 +11,7 @@ const upload = multer({ dest: 'uploads/' });
 const templatesDir = path.join(__dirname, 'templates');
 
 // Serve static files for the client
-app.use(express.static(path.join(__dirname, 'client')));
+app.use(express.static(path.join(__dirname, '..', 'client')));
 
 // Get available templates
 app.get('/templates', (req, res) => {
