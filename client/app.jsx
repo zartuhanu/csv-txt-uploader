@@ -4,7 +4,11 @@ function App() {
   const [templates, setTemplates] = useState([]);
   const [template, setTemplate] = useState('');
   const [file, setFile] = useState(null);
-  const [output, setOutput] = useState('');
+  const [issues, setIssues] = useState([]);
+  const [details, setDetails] = useState({});
+  const [expanded, setExpanded] = useState({});
+  const [message, setMessage] = useState('');
+  const [showUpload, setShowUpload] = useState(false);
 
   useEffect(() => {
     fetch('/templates')
@@ -19,10 +23,23 @@ function App() {
     form.append('template', template);
     const res = await fetch('/compare', { method: 'POST', body: form });
     const data = await res.json();
-    if (data.issues) {
-      setOutput(data.issues.join('\n'));
-    } else if (data.error) {
-      setOutput('Error: ' + data.error);
+    if (data.error) {
+      setMessage('Error: ' + data.error);
+      setIssues([]);
+      setDetails({});
+      setShowUpload(false);
+      setExpanded({});
+    } else {
+      const foundIssues = data.issues || [];
+      setIssues(foundIssues);
+      setDetails(data.details || {});
+      setExpanded({});
+      if (foundIssues.length === 0) {
+        setMessage('No issues found. You can upload to DB.');
+      } else {
+        setMessage('');
+      }
+      setShowUpload(foundIssues.length === 0);
     }
   };
 
@@ -33,7 +50,7 @@ function App() {
     form.append('template', template);
     const res = await fetch('/upload', { method: 'POST', body: form });
     const data = await res.json();
-    setOutput(data.message || data.error);
+    setMessage(data.message || data.error);
   };
 
   return (
@@ -53,8 +70,38 @@ function App() {
         <input type="file" onChange={e => setFile(e.target.files[0])} />
       </div>
       <button onClick={handleCheck}>Check File</button>
-      <button onClick={handleUpload}>Upload to DB</button>
-      <pre className="output">{output}</pre>
+      {showUpload && (
+        <button onClick={handleUpload}>Upload to DB</button>
+      )}
+      <div className="output">
+        {message && <pre>{message}</pre>}
+        {issues.length > 0 && (
+          <ul>
+            {issues.map(issue => (
+              <li key={issue}>
+                {issue}
+                {details[issue] && details[issue].length > 0 && (
+                  <div>
+                    <button onClick={() => setExpanded({
+                      ...expanded,
+                      [issue]: !expanded[issue]
+                    })}>
+                      {expanded[issue] ? 'Hide details' : 'Show details'}
+                    </button>
+                    {expanded[issue] && (
+                      <ul>
+                        {details[issue].map((d, i) => (
+                          <li key={i}>{d}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
