@@ -31,7 +31,7 @@ function App() {
     } else {
       setIssues(data.issues || []);
       setDetails(data.details || {});
-      setMessage('');
+      setMessage(data.message || '');
       setShowUpload((data.issues || []).length === 0);
     }
   };
