@@ -105,7 +105,9 @@ app.post('/compare', upload.single('file'), (req, res) => {
     });
     const { issues, details } = checkData(rows, template);
     fs.unlinkSync(req.file.path);
-    res.json({ issues, details });
+    const message = issues.length === 0 ?
+      'No issues found. File matches the template.' : '';
+    res.json({ issues, details, message });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
