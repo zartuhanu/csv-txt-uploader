@@ -48,8 +48,10 @@ function inferType(value) {
 
 function checkData(rows, template) {
   const issues = [];
+  const details = {};
   const headers = rows[0];
   const columnDefs = template.columns.map(col => col.name);
+
   // Check missing or extra columns
   columnDefs.forEach(col => {
     if (!headers.includes(col)) {
@@ -61,23 +63,33 @@ function checkData(rows, template) {
       issues.push(`Unexpected column ${col}`);
     }
   });
+
   // Check column count per row
   rows.slice(1).forEach((row, i) => {
     if (row.length !== headers.length) {
       issues.push(`Row ${i + 2} has ${row.length} columns, expected ${headers.length}`);
     }
   });
+
   // Check type mismatches
   rows.slice(1).forEach((row, i) => {
     row.forEach((cell, j) => {
       const expectedType = template.columns[j]?.type || 'string';
       const actualType = inferType(cell);
       if (expectedType !== actualType) {
-        issues.push(`Row ${i + 2} column ${headers[j]} expected ${expectedType} got ${actualType}`);
+        const key = `Wrong type in column ${headers[j]} (expected ${expectedType})`;
+        if (!issues.includes(key)) {
+          issues.push(key);
+        }
+        if (!details[key]) {
+          details[key] = [];
+        }
+        details[key].push(`Row ${i + 2} value "${cell}" is ${actualType}`);
       }
     });
   });
-  return issues;
+
+  return { issues, details };
 }
 
 // Compare endpoint
@@ -91,9 +103,9 @@ app.post('/compare', upload.single('file'), (req, res) => {
       trim: true,
       relax_column_count: true
     });
-    const issues = checkData(rows, template);
+    const { issues, details } = checkData(rows, template);
     fs.unlinkSync(req.file.path);
-    res.json({ issues });
+    res.json({ issues, details });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
