@@ -2,19 +2,21 @@ import express from 'express';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { parse } from 'csv-parse/sync';
 
-const __dirname = path.resolve();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const upload = multer({ dest: 'uploads/' });
-const templatesDir = path.join(__dirname, 'server', 'templates');
+const templatesDir = path.join(__dirname, 'templates');
 
 // Serve static files for the client
 app.use(express.static(path.join(__dirname, 'client')));
 
 // Get available templates
 app.get('/templates', (req, res) => {
-  const files = fs.readdirSync(templatesDir).filter(f => f.endsWith('.json'));
+  // list available CSV template files so the client can choose one
+  const files = fs.readdirSync(templatesDir).filter(f => f.endsWith('.csv'));
   res.json(files);
 });
 
@@ -23,7 +25,17 @@ function loadTemplate(name) {
   if (!fs.existsSync(file)) {
     throw new Error('Template not found');
   }
-  return JSON.parse(fs.readFileSync(file, 'utf8'));
+  // Parse the CSV template and build a template definition
+  const content = fs.readFileSync(file, 'utf8');
+  const rows = parse(content, {
+    delimiter: ',',
+    trim: true,
+    relax_column_count: true
+  });
+  const headers = rows[0] || [];
+  const sample = rows[1] || [];
+  const columns = headers.map((h, i) => ({ name: h, type: inferType(sample[i]) }));
+  return { name: path.basename(name, path.extname(name)), columns };
 }
 
 // Helper to determine data type
