@@ -28,11 +28,18 @@ function App() {
       setIssues([]);
       setDetails({});
       setShowUpload(false);
+      setExpanded({});
     } else {
-      setIssues(data.issues || []);
+      const foundIssues = data.issues || [];
+      setIssues(foundIssues);
       setDetails(data.details || {});
-      setMessage('');
-      setShowUpload((data.issues || []).length === 0);
+      setExpanded({});
+      if (foundIssues.length === 0) {
+        setMessage('No issues found. You can upload to DB.');
+      } else {
+        setMessage('');
+      }
+      setShowUpload(foundIssues.length === 0);
     }
   };
 
