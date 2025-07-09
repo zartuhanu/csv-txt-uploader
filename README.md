@@ -10,7 +10,8 @@ This is a small demo that checks simple formatting issues in CSV/TXT files using
    cd server
    npm install
    ```
-3. Start the server from the project root:
+3. Start the server from the project root (or run `node index.js` from the
+   `server` directory):
    ```bash
    node server/index.js
    ```

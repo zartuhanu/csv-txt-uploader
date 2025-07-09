@@ -2,15 +2,17 @@ import express from 'express';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { parse } from 'csv-parse/sync';
 
-const __dirname = path.resolve();
+// Resolve paths relative to this file no matter where the script is run from
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const upload = multer({ dest: 'uploads/' });
-const templatesDir = path.join(__dirname, 'server', 'templates');
+const templatesDir = path.join(__dirname, 'templates');
 
 // Serve static files for the client
-app.use(express.static(path.join(__dirname, 'client')));
+app.use(express.static(path.join(__dirname, '..', 'client')));
 
 // Get available templates
 app.get('/templates', (req, res) => {
