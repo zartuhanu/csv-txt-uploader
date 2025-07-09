@@ -48,6 +48,7 @@ function App() {
 
   return (
     <div className="container">
+      <img src="Zurich_Insurance_Group_logo.svg.png" alt="Zurich Logo" className="logo" />
       <h1>CSV/TXT Uploader</h1>
       <div>
         <label>Template:</label>
