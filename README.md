@@ -4,6 +4,10 @@ Simple demo web application that compares CSV/TXT files against predefined
 templates, reports formatting issues and uploads the data into a database. It
 consists of a Node.js/Express backend and a minimal React UI.
 
+All Node dependencies are defined in `server/package.json`. The repository root
+no longer contains its own `package.json` so install packages from within the
+`server` directory.
+
 ## Authentication
 
 Each time the app is loaded it shows a simple login screen styled the same as
