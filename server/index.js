@@ -4,12 +4,22 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { parse } from 'csv-parse/sync';
+import pkg from 'pg';
+
+const { Pool } = pkg;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.use(express.json());
 const upload = multer({ dest: 'uploads/' });
 const templatesDir = path.join(__dirname, 'templates');
+const pool = new Pool({
+  host: process.env.PGHOST || 'localhost',
+  port: process.env.PGPORT ? Number(process.env.PGPORT) : 5432,
+  user: process.env.PGUSER || 'postgres',
+  password: process.env.PGPASSWORD || 'postgres',
+  database: process.env.PGDATABASE || 'postgres'
+});
 
 // Serve static files for the client
 app.use(express.static(path.join(__dirname, '..', 'client')));
@@ -123,7 +133,7 @@ app.post('/compare', upload.single('file'), (req, res) => {
   }
 });
 
-// Upload to Oracle DB (placeholder)
+// Upload to PostgreSQL
 app.post('/upload', upload.single('file'), async (req, res) => {
   try {
     const templateName = req.body.template;
@@ -135,24 +145,36 @@ app.post('/upload', upload.single('file'), async (req, res) => {
       relax_column_count: true
     });
     fs.unlinkSync(req.file.path);
-    // TODO: configure Oracle connection details
-    /*
-    import oracledb from 'oracledb';
-    const connection = await oracledb.getConnection({
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      connectString: process.env.DB_CONNECT_STRING
-    });
-    for (const row of rows.slice(1)) {
-      await connection.execute(
-        `INSERT INTO ${template.name} (${template.columns.map(c => c.name).join(',')}) VALUES (${template.columns.map(_ => ':value').join(',')})`,
-        row
+
+    const client = await pool.connect();
+    try {
+      const columnNames = template.columns.map(c => `"${c.name}"`).join(', ');
+      const placeholders = template.columns.map((_, i) => `$${i + 1}`).join(', ');
+
+      const createCols = template.columns
+        .map(c => `"${c.name}" TEXT`)
+        .join(', ');
+
+      await client.query(
+        `CREATE TABLE IF NOT EXISTS ${template.name} (${createCols})`
       );
+
+      await client.query('BEGIN');
+      for (const row of rows.slice(1)) {
+        await client.query(
+          `INSERT INTO ${template.name} (${columnNames}) VALUES (${placeholders})`,
+          row
+        );
+      }
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
     }
-    await connection.commit();
-    await connection.close();
-    */
-    res.json({ message: 'Upload to Oracle DB not implemented in this demo.' });
+
+    res.json({ message: 'Upload complete' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
