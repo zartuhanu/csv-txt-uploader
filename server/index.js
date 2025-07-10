@@ -41,7 +41,15 @@ app.get('/templates', (req, res) => {
 });
 
 function loadTemplate(name) {
-  const file = path.join(templatesDir, name);
+  // Resolve the requested path and ensure it stays within the templates
+  // directory to prevent directory traversal attacks.
+  if (path.basename(name) !== name) {
+    throw new Error('Invalid template path');
+  }
+  const file = path.resolve(templatesDir, name);
+  if (!file.startsWith(templatesDir)) {
+    throw new Error('Invalid template path');
+  }
   if (!fs.existsSync(file)) {
     throw new Error('Template not found');
   }
