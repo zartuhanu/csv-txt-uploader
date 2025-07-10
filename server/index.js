@@ -155,14 +155,15 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         .map(c => `"${c.name}" TEXT`)
         .join(', ');
 
+      const tableName = `"${template.name.replace(/"/g, '""')}"`;
       await client.query(
-        `CREATE TABLE IF NOT EXISTS ${template.name} (${createCols})`
+        `CREATE TABLE IF NOT EXISTS ${tableName} (${createCols})`
       );
 
       await client.query('BEGIN');
       for (const row of rows.slice(1)) {
         await client.query(
-          `INSERT INTO ${template.name} (${columnNames}) VALUES (${placeholders})`,
+          `INSERT INTO ${tableName} (${columnNames}) VALUES (${placeholders})`,
           row
         );
       }
