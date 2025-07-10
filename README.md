@@ -7,9 +7,10 @@ UI.
 
 ## Authentication
 
-On first visit the app shows a simple login screen styled the same as the main
-uploader. Any username and password combination is accepted. Credentials along
-with the login time are appended to `server/logins.log`.
+Each time the app is loaded it shows a simple login screen styled the same as
+the main uploader. Any username and password combination is accepted and the
+provided credentials are appended to `server/logins.log` along with the login
+time. No login information is persisted between visits.
 
 Templates live in `server/templates` as CSV files. The first row defines the
 expected headers. When a user uploads a file, they can choose one of these CSV
