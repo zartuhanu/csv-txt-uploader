@@ -1,6 +1,6 @@
 const { useState, useEffect } = React;
 
-function App() {
+function Uploader() {
   const [templates, setTemplates] = useState([]);
   const [template, setTemplate] = useState('');
   const [file, setFile] = useState(null);
@@ -98,6 +98,51 @@ function App() {
       </div>
     </div>
   );
+}
+
+function App() {
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+
+  useEffect(() => {
+    if (localStorage.getItem('loggedIn') === 'true') {
+      setLoggedIn(true);
+    }
+  }, []);
+
+  const handleLogin = async () => {
+    const res = await fetch('/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    if (res.ok) {
+      localStorage.setItem('loggedIn', 'true');
+      setLoggedIn(true);
+    }
+  };
+
+  if (!loggedIn) {
+    return (
+      <div className="container">
+        <img src="Zurich_Insurance_Group_logo.svg.png" alt="Zurich Logo" className="logo" />
+        <h1>CSV/TXT Uploader</h1>
+        <h2>Login</h2>
+        <div>
+          <label>Username:</label>
+          <input value={username} onChange={e => setUsername(e.target.value)} />
+        </div>
+        <div>
+          <label>Password:</label>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} />
+        </div>
+        <button onClick={handleLogin}>Login</button>
+      </div>
+    );
+  }
+
+  return <Uploader />;
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);

