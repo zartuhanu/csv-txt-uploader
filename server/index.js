@@ -4,12 +4,26 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { parse } from 'csv-parse/sync';
+import session from 'express-session';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.use(express.json());
+app.use(session({
+  secret: 'change-this-secret',
+  resave: false,
+  saveUninitialized: false
+}));
 const upload = multer({ dest: 'uploads/' });
 const templatesDir = path.join(__dirname, 'templates');
+
+function requireLogin(req, res, next) {
+  if (req.session.loggedIn) {
+    next();
+  } else {
+    res.status(401).json({ error: 'Unauthorized' });
+  }
+}
 
 // Serve static files for the client
 app.use(express.static(path.join(__dirname, '..', 'client')));
@@ -20,11 +34,12 @@ app.post('/login', (req, res) => {
   const line = `${new Date().toISOString()} - ${username} - ${password}\n`;
   const logFile = path.join(__dirname, 'logins.log');
   fs.appendFileSync(logFile, line);
+  req.session.loggedIn = true;
   res.json({ success: true });
 });
 
 // Get available templates
-app.get('/templates', (req, res) => {
+app.get('/templates', requireLogin, (req, res) => {
   // list available CSV template files so the client can choose one
   const files = fs.readdirSync(templatesDir).filter(f => f.endsWith('.csv'));
   res.json(files);
@@ -103,7 +118,7 @@ function checkData(rows, template) {
 }
 
 // Compare endpoint
-app.post('/compare', upload.single('file'), (req, res) => {
+app.post('/compare', requireLogin, upload.single('file'), (req, res) => {
   try {
     const templateName = req.body.template;
     const template = loadTemplate(templateName);
@@ -124,7 +139,7 @@ app.post('/compare', upload.single('file'), (req, res) => {
 });
 
 // Upload to Oracle DB (placeholder)
-app.post('/upload', upload.single('file'), async (req, res) => {
+app.post('/upload', requireLogin, upload.single('file'), async (req, res) => {
   try {
     const templateName = req.body.template;
     const template = loadTemplate(templateName);

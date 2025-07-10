@@ -5,6 +5,16 @@ templates, reports formatting issues and (optionally) uploads the data into an
 Oracle Database. It consists of a Node.js/Express backend and a minimal React
 UI.
 
+## Setup
+
+Install the server dependencies before starting the application:
+
+```bash
+cd server
+npm install
+node index.js
+```
+
 ## Authentication
 
 On first visit the app shows a simple login screen styled the same as the main

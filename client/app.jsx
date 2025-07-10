@@ -105,12 +105,6 @@ function App() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
-  useEffect(() => {
-    if (localStorage.getItem('loggedIn') === 'true') {
-      setLoggedIn(true);
-    }
-  }, []);
-
   const handleLogin = async () => {
     const res = await fetch('/login', {
       method: 'POST',
@@ -118,7 +112,6 @@ function App() {
       body: JSON.stringify({ username, password })
     });
     if (res.ok) {
-      localStorage.setItem('loggedIn', 'true');
       setLoggedIn(true);
     }
   };
