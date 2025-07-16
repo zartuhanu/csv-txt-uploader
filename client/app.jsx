@@ -9,12 +9,24 @@ function Uploader() {
   const [expanded, setExpanded] = useState({});
   const [message, setMessage] = useState('');
   const [showUpload, setShowUpload] = useState(false);
+  const [schema, setSchema] = useState(null);
 
   useEffect(() => {
     fetch('/templates')
       .then(res => res.json())
       .then(data => setTemplates(data));
   }, []);
+
+  useEffect(() => {
+    if (template) {
+      fetch(`/templates/${encodeURIComponent(template)}`)
+        .then(res => res.json())
+        .then(data => setSchema(data.columns || []))
+        .catch(() => setSchema(null));
+    } else {
+      setSchema(null);
+    }
+  }, [template]);
 
   const handleCheck = async () => {
     if (!file || !template) return;
@@ -59,6 +71,16 @@ function Uploader() {
           ))}
         </select>
       </div>
+      {schema && (
+        <div>
+          <h3>Columns</h3>
+          <ul>
+            {schema.map(c => (
+              <li key={c.name}>{c.name} ({c.type})</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div>
         <label>File:</label>
         <input type="file" onChange={e => setFile(e.target.files[0])} />

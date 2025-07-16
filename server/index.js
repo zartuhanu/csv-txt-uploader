@@ -12,7 +12,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.use(express.json());
 const upload = multer({ dest: 'uploads/' });
-const templatesDir = path.join(__dirname, 'templates');
 const pool = new Pool({
   host: process.env.PGHOST || 'localhost',
   port: process.env.PGPORT ? Number(process.env.PGPORT) : 5432,
@@ -33,28 +32,37 @@ app.post('/login', (req, res) => {
   res.json({ success: true });
 });
 
-// Get available templates
+// In-memory store of templates discovered at startup
+const templates = new Map();
+
+// Load all templates from the DB when the server starts
+async function discoverTemplates() {
+  try {
+    const result = await pool.query('SELECT name, content FROM templates');
+    for (const row of result.rows) {
+      templates.set(row.name, buildTemplate(row.name, row.content));
+    }
+    console.log(`Loaded ${templates.size} templates`);
+  } catch (err) {
+    console.error('Failed to load templates:', err);
+  }
+}
+
+// List available template names
 app.get('/templates', (req, res) => {
-  // list available CSV template files so the client can choose one
-  const files = fs.readdirSync(templatesDir).filter(f => f.endsWith('.csv'));
-  res.json(files);
+  res.json(Array.from(templates.keys()));
 });
 
-function loadTemplate(name) {
-  // Resolve the requested path and ensure it stays within the templates
-  // directory to prevent directory traversal attacks.
-  if (path.basename(name) !== name) {
-    throw new Error('Invalid template path');
+// Get schema details for a single template
+app.get('/templates/:name', (req, res) => {
+  const tpl = templates.get(req.params.name);
+  if (!tpl) {
+    return res.status(404).json({ error: 'Template not found' });
   }
-  const file = path.resolve(templatesDir, name);
-  if (!file.startsWith(templatesDir)) {
-    throw new Error('Invalid template path');
-  }
-  if (!fs.existsSync(file)) {
-    throw new Error('Template not found');
-  }
-  // Parse the CSV template and build a template definition
-  const content = fs.readFileSync(file, 'utf8');
+  res.json(tpl);
+});
+
+function buildTemplate(name, content) {
   const rows = parse(content, {
     delimiter: ',',
     trim: true,
@@ -63,7 +71,18 @@ function loadTemplate(name) {
   const headers = rows[0] || [];
   const sample = rows[1] || [];
   const columns = headers.map((h, i) => ({ name: h, type: inferType(sample[i]) }));
-  return { name: path.basename(name, path.extname(name)), columns };
+  return { name, columns };
+}
+
+function loadTemplate(name) {
+  if (path.basename(name) !== name) {
+    throw new Error('Invalid template name');
+  }
+  const tpl = templates.get(name);
+  if (!tpl) {
+    throw new Error('Template not found');
+  }
+  return tpl;
 }
 
 // Helper to determine data type
@@ -121,7 +140,7 @@ function checkData(rows, template) {
 }
 
 // Compare endpoint
-app.post('/compare', upload.single('file'), (req, res) => {
+app.post('/compare', upload.single('file'), async (req, res) => {
   try {
     const templateName = req.body.template;
     const template = loadTemplate(templateName);
@@ -188,6 +207,8 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+await discoverTemplates();
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
