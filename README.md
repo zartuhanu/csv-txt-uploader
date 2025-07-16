@@ -15,10 +15,19 @@ the main uploader. Any username and password combination is accepted and the
 provided credentials are appended to `server/logins.log` along with the login
 time. No login information is persisted between visits.
 
-Templates live in `server/templates` as CSV files. The first row defines the
-expected headers. When a user uploads a file, they can choose one of these CSV
-files as the template and the server will validate that the uploaded data
-matches the column structure and inferred data types from the template.
+Templates are stored in a PostgreSQL table (default `templates`) with two
+columns: `name` (the template name) and `content` which contains the CSV
+definition. The first row of each CSV defines the expected headers. When a user
+uploads a file, they choose one of these templates and the server validates that
+the uploaded data matches the column structure and inferred data types. Set the
+`TEMPLATES_TABLE` environment variable if your templates live in a differently
+named table.
+
+The backend loads all templates from the database when it starts. It exposes two
+endpoints:
+
+* `GET /templates` — return the list of template names
+* `GET /templates/<name>` — return the schema for a single template
 
 ## PostgreSQL setup
 
@@ -39,7 +48,21 @@ export PGPORT=5432
 export PGUSER=postgres
 export PGPASSWORD=postgres
 export PGDATABASE=csvuploader
+export TEMPLATES_TABLE=templates   # optional
 ```
+
+If the table does not exist the server will create it automatically on start.
+The default structure is:
+
+```sql
+CREATE TABLE templates (
+  name TEXT PRIMARY KEY,
+  content TEXT NOT NULL
+);
+```
+
+You can load the sample templates found in `server/templates/` with `psql` or
+any other tool.
 
 Then install dependencies and start the server:
 
