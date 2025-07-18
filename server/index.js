@@ -35,12 +35,30 @@ app.post('/login', (req, res) => {
 // In-memory store of templates discovered at startup
 const templates = new Map();
 
-// Load all templates from the DB when the server starts
+function mapPgType(type) {
+  const nums = ['smallint','integer','bigint','decimal','numeric','real','double precision'];
+  if (nums.includes(type)) return 'number';
+  if (type === 'boolean') return 'boolean';
+  return 'string';
+}
+
+// Load all templates from existing DB tables when the server starts
 async function discoverTemplates() {
   try {
-    const result = await pool.query('SELECT name, content FROM templates');
+    const result = await pool.query(
+      `SELECT table_name, column_name, data_type
+       FROM information_schema.columns
+       WHERE table_schema = 'public'
+       ORDER BY table_name, ordinal_position`
+    );
     for (const row of result.rows) {
-      templates.set(row.name, buildTemplate(row.name, row.content));
+      if (!templates.has(row.table_name)) {
+        templates.set(row.table_name, { name: row.table_name, columns: [] });
+      }
+      templates.get(row.table_name).columns.push({
+        name: row.column_name,
+        type: mapPgType(row.data_type)
+      });
     }
     console.log(`Loaded ${templates.size} templates`);
   } catch (err) {
@@ -62,18 +80,6 @@ app.get('/templates/:name', (req, res) => {
   res.json(tpl);
 });
 
-function buildTemplate(name, content) {
-  const rows = parse(content, {
-    delimiter: ',',
-    trim: true,
-    relax_column_count: true
-  });
-  const headers = rows[0] || [];
-  const sample = rows[1] || [];
-  const columns = headers.map((h, i) => ({ name: h, type: inferType(sample[i]) }));
-  return { name, columns };
-}
-
 function loadTemplate(name) {
   if (path.basename(name) !== name) {
     throw new Error('Invalid template name');
@@ -85,7 +91,7 @@ function loadTemplate(name) {
   return tpl;
 }
 
-// Helper to determine data type
+// Helper to determine data type from uploaded value
 function inferType(value) {
   if (!value) return 'string';
   if (!isNaN(Number(value))) return 'number';
@@ -177,15 +183,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     try {
       const columnNames = template.columns.map(c => `"${c.name}"`).join(', ');
       const placeholders = template.columns.map((_, i) => `$${i + 1}`).join(', ');
-
-      const createCols = template.columns
-        .map(c => `"${c.name}" TEXT`)
-        .join(', ');
-
       const tableName = `"${template.name.replace(/"/g, '""')}"`;
-      await client.query(
-        `CREATE TABLE IF NOT EXISTS ${tableName} (${createCols})`
-      );
 
       await client.query('BEGIN');
       for (const row of rows.slice(1)) {
