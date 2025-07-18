@@ -45,6 +45,7 @@ function mapPgType(type) {
 // Load all templates from existing DB tables when the server starts
 async function discoverTemplates() {
   try {
+    templates.clear();
     const result = await pool.query(
       `SELECT table_name, column_name, data_type
        FROM information_schema.columns
@@ -67,12 +68,14 @@ async function discoverTemplates() {
 }
 
 // List available template names
-app.get('/templates', (req, res) => {
+app.get('/templates', async (req, res) => {
+  await discoverTemplates();
   res.json(Array.from(templates.keys()));
 });
 
 // Get schema details for a single template
-app.get('/templates/:name', (req, res) => {
+app.get('/templates/:name', async (req, res) => {
+  await discoverTemplates();
   const tpl = templates.get(req.params.name);
   if (!tpl) {
     return res.status(404).json({ error: 'Template not found' });
