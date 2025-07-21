@@ -46,8 +46,8 @@ function mapPgType(type) {
 async function discoverTemplates() {
   try {
     templates.clear();
-    const result = await pool.query(
-      `SELECT table_name, column_name, data_type
+  const result = await pool.query(
+      `SELECT table_name, column_name, data_type, column_default
        FROM information_schema.columns
        WHERE table_schema = 'public'
        ORDER BY table_name, ordinal_position`
@@ -58,7 +58,9 @@ async function discoverTemplates() {
       }
       templates.get(row.table_name).columns.push({
         name: row.column_name,
-        type: mapPgType(row.data_type)
+        type: mapPgType(row.data_type),
+        dbType: row.data_type,
+        default: row.column_default
       });
     }
     console.log(`Loaded ${templates.size} templates`);
@@ -204,6 +206,19 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     }
 
     res.json({ message: 'Upload complete' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Return up to 100 rows from a table
+app.get('/data/:table', async (req, res) => {
+  const tbl = req.params.table;
+  try {
+    const result = await pool.query(
+      `SELECT * FROM public."${tbl.replace(/"/g, '""')}" LIMIT 100`
+    );
+    res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
