@@ -59,3 +59,5 @@ cd server
 npm install
 node index.js
 ```
+docker exec -it csv-uploader-postgres \
+  psql -U postgres -d csvuploader
