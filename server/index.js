@@ -72,8 +72,10 @@ async function discoverTemplates() {
 // List available template names
 app.get('/templates', async (req, res) => {
   await discoverTemplates();
+  console.log(templates);  // Log the templates data before sending it to the frontend
   res.json(Array.from(templates.keys()));
 });
+
 
 // Get schema details for a single template
 app.get('/templates/:name', async (req, res) => {

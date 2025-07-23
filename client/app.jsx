@@ -12,11 +12,15 @@ function Uploader() {
   const [showUpload, setShowUpload] = useState(false);
   const [schema, setSchema] = useState(null);
 
-  useEffect(() => {
-    fetch('/templates')
-      .then(res => res.json())
-      .then(data => setTemplates(data));
-  }, []);
+useEffect(() => {
+  fetch('/templates')
+    .then(res => res.json())
+    .then(data => {
+      console.log(data);  // Log the fetched templates to verify data
+      setTemplates(data);
+    });
+}, []);
+
 
   useEffect(() => {
     if (template) {
