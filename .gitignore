@@ -3,4 +3,5 @@ uploads
 
 server/node_modules
 server/logins.log
+.DS_Store
 

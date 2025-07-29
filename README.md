@@ -15,10 +15,19 @@ the main uploader. Any username and password combination is accepted and the
 provided credentials are appended to `server/logins.log` along with the login
 time. No login information is persisted between visits.
 
-Templates live in `server/templates` as CSV files. The first row defines the
-expected headers. When a user uploads a file, they can choose one of these CSV
-files as the template and the server will validate that the uploaded data
-matches the column structure and inferred data types from the template.
+Templates are discovered directly from the PostgreSQL database. Every table in
+the `public` schema is treated as a possible upload target and its column
+definitions form the template. The API exposes these columns using the same data
+types reported by PostgreSQL, while also mapping them internally to simple
+categories (`number`, `string`, `boolean`) for validation. When a user uploads a
+file they select which table to insert into and the server validates that the
+uploaded data matches the table's columns and types.
+
+The backend loads all available table definitions on startup. It exposes two
+endpoints:
+
+* `GET /templates` — return the list of template names
+* `GET /templates/<name>` — return the schema for a single template
 
 ## PostgreSQL setup
 
@@ -40,6 +49,10 @@ export PGUSER=postgres
 export PGPASSWORD=postgres
 export PGDATABASE=csvuploader
 ```
+
+Create whatever tables you want to upload into and ensure they exist in the
+database. The application will read their column definitions and treat each
+table as a template option on the upload screen.
 
 Then install dependencies and start the server:
 

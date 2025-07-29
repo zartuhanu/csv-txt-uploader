@@ -12,7 +12,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.use(express.json());
 const upload = multer({ dest: 'uploads/' });
-const templatesDir = path.join(__dirname, 'templates');
 const pool = new Pool({
   host: process.env.PGHOST || 'localhost',
   port: process.env.PGPORT ? Number(process.env.PGPORT) : 5432,
@@ -33,32 +32,70 @@ app.post('/login', (req, res) => {
   res.json({ success: true });
 });
 
-// Get available templates
+// In-memory store of templates discovered at startup
+const templates = new Map();
+
+function mapPgType(type) {
+  const t = type.toLowerCase().trim();
+  const nums = ['smallint','integer','bigint','decimal','numeric','real','double precision'];
+  if (nums.includes(t)) return 'number';
+  if (t === 'boolean') return 'boolean';
+  return 'string';
+}
+
+// Load all templates from existing DB tables when the server starts
+async function discoverTemplates() {
+  try {
+    const result = await pool.query(
+      `SELECT c.table_name, c.column_name, c.data_type
+       FROM information_schema.columns c
+       JOIN information_schema.tables t
+         ON c.table_name = t.table_name AND c.table_schema = t.table_schema
+       WHERE c.table_schema = 'public' AND t.table_type = 'BASE TABLE'
+       ORDER BY c.table_name, c.ordinal_position`
+    );
+    for (const row of result.rows) {
+      if (!templates.has(row.table_name)) {
+        templates.set(row.table_name, { name: row.table_name, columns: [] });
+      }
+      templates.get(row.table_name).columns.push({
+        name: row.column_name,
+        type: row.data_type,
+        expected: mapPgType(row.data_type)
+      });
+    }
+    console.log('Loaded templates:', Array.from(templates.keys()).join(', '));
+  } catch (err) {
+    console.error('Failed to load templates:', err);
+  }
+}
+
+// List available template names
 app.get('/templates', (req, res) => {
-  // list available CSV template files so the client can choose one
-  const files = fs.readdirSync(templatesDir).filter(f => f.endsWith('.csv'));
-  res.json(files);
+  res.json(Array.from(templates.keys()));
+});
+
+// Get schema details for a single template
+app.get('/templates/:name', (req, res) => {
+  const tpl = templates.get(req.params.name);
+  if (!tpl) {
+    return res.status(404).json({ error: 'Template not found' });
+  }
+  res.json(tpl);
 });
 
 function loadTemplate(name) {
-  const file = path.join(templatesDir, name);
-  if (!fs.existsSync(file)) {
+  if (path.basename(name) !== name) {
+    throw new Error('Invalid template name');
+  }
+  const tpl = templates.get(name);
+  if (!tpl) {
     throw new Error('Template not found');
   }
-  // Parse the CSV template and build a template definition
-  const content = fs.readFileSync(file, 'utf8');
-  const rows = parse(content, {
-    delimiter: ',',
-    trim: true,
-    relax_column_count: true
-  });
-  const headers = rows[0] || [];
-  const sample = rows[1] || [];
-  const columns = headers.map((h, i) => ({ name: h, type: inferType(sample[i]) }));
-  return { name: path.basename(name, path.extname(name)), columns };
+  return tpl;
 }
 
-// Helper to determine data type
+// Helper to determine data type from uploaded value
 function inferType(value) {
   if (!value) return 'string';
   if (!isNaN(Number(value))) return 'number';
@@ -94,7 +131,7 @@ function checkData(rows, template) {
   // Check type mismatches
   rows.slice(1).forEach((row, i) => {
     row.forEach((cell, j) => {
-      const expectedType = template.columns[j]?.type || 'string';
+      const expectedType = template.columns[j]?.expected || 'string';
       const actualType = inferType(cell);
       if (expectedType !== actualType) {
         const key = `Wrong type in column ${headers[j]} (expected ${expectedType})`;
@@ -113,7 +150,7 @@ function checkData(rows, template) {
 }
 
 // Compare endpoint
-app.post('/compare', upload.single('file'), (req, res) => {
+app.post('/compare', upload.single('file'), async (req, res) => {
   try {
     const templateName = req.body.template;
     const template = loadTemplate(templateName);
@@ -150,15 +187,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     try {
       const columnNames = template.columns.map(c => `"${c.name}"`).join(', ');
       const placeholders = template.columns.map((_, i) => `$${i + 1}`).join(', ');
-
-      const createCols = template.columns
-        .map(c => `"${c.name}" TEXT`)
-        .join(', ');
-
       const tableName = `"${template.name.replace(/"/g, '""')}"`;
-      await client.query(
-        `CREATE TABLE IF NOT EXISTS ${tableName} (${createCols})`
-      );
 
       await client.query('BEGIN');
       for (const row of rows.slice(1)) {
@@ -180,6 +209,8 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+await discoverTemplates();
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
