@@ -1,3 +1,6 @@
+// 1) load .env into process.env
+import 'dotenv/config';
+
 import express from 'express';
 import multer from 'multer';
 import fs from 'fs';
@@ -152,7 +155,15 @@ app.post('/upload', upload.single('file'), async (req, res) => {
       const placeholders = template.columns.map((_, i) => `$${i + 1}`).join(', ');
 
       const createCols = template.columns
-        .map(c => `"${c.name}" TEXT`)
+        .map(c => {
+          let pgType;
+          switch (c.type) {
+            case 'number':  pgType = 'NUMERIC';   break;
+            case 'boolean': pgType = 'BOOLEAN';   break;
+            default:        pgType = 'TEXT';      break;
+          }
+          return `"${c.name}" ${pgType}`;
+        })
         .join(', ');
 
       const tableName = `"${template.name.replace(/"/g, '""')}"`;

@@ -1,15 +1,12 @@
 {
-  "name": "csv-txt-uploader-server",
+  "name": "csv-txt-uploader",
   "version": "1.0.0",
-  "main": "index.js",
   "type": "module",
-  "dependencies": {
-    "csv-parse": "^5.3.10",
-    "express": "^4.18.2",
-    "multer": "^1.4.5-lts.1",
-    "pg": "^8.11.1"
+  "scripts": {
+    "start": "node index.js"
   },
-  "optionalDependencies": {
-    "oracledb": "^6.3.0"
+  "dependencies": {
+    "dotenv": "^17.2.1"
+    
   }
 }
