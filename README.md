@@ -1,50 +1,73 @@
 # csv-txt-uploader
 
-Simple demo web application that compares CSV/TXT files against predefined
-templates, reports formatting issues and uploads the data into a database. It
-consists of a Node.js/Express backend and a minimal React UI.
+CSV/TXT dosyalarını ön tanımlı şablonlarla karşılaştırır, formatlama hatalarını raporlar ve veriyi PostgreSQL veritabanına yükler. Uygulama, bir Node.js/Express back end ile minimal bir React front end den oluşur.
 
-All Node dependencies are defined in `server/package.json`. The repository root
-no longer contains its own `package.json` so install packages from within the
-`server` directory.
+## Özellikler
 
-## Authentication
+- **Şablon doğrulama**  
+  `server/templates` klasöründeki CSV şablon dosyalarının ilk satırındaki başlıkları ve tür örneklemelerini kullanarak; yüklenen dosyanın sütun yapısını ve veri tiplerini denetler.  
+- **Hata raporlama**  
+  Eksik/fazla sütunlar, satır başına değişken sütun sayısı ve tür uyuşmazlıklarını tespit edip detaylı çıktı verir.  
+- **PostgreSQL’e yükleme**  
+  Hata yoksa “Upload to DB” butonuyla tüm satırları dinamik olarak oluşturulan tabloya aktarır.  
+- **Authenticator**  
+  Uygulama her yüklemede kullanıcı adı/şifre ekranı gösterir; girilen bilgileri `server/logins.log` dosyasına zaman damgasıyla kaydeder. (Şu anki haliyle her kombinasyon kabul edilir)
 
-Each time the app is loaded it shows a simple login screen styled the same as
-the main uploader. Any username and password combination is accepted and the
-provided credentials are appended to `server/logins.log` along with the login
-time. No login information is persisted between visits.
+---
 
-Templates live in `server/templates` as CSV files. The first row defines the
-expected headers. When a user uploads a file, they can choose one of these CSV
-files as the template and the server will validate that the uploaded data
-matches the column structure and inferred data types from the template.
+## Önkoşullar
 
-## PostgreSQL setup
+- Node.js (v14 veya üzeri)  
+- PostgreSQL  
+- Docker 
 
-The upload button inserts all rows into a PostgreSQL database. A convenient way
-to run PostgreSQL locally is via Docker:
+---
 
-```bash
-docker run --name csv-uploader-postgres -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=csvuploader -p 5432:5432 -d postgres
-```
+## 1. PostgreSQL Kurulumu (Docker ile)
 
-The server uses the standard PostgreSQL environment variables. Before starting
-the backend set:
+Kod şu anda Docker üzerinden bir PostgreSQL konteyneri başlatılarak çalışmaktadır(bu kod dökümanın en sonunda bulunabilir)
 
-```bash
-export PGHOST=localhost
-export PGPORT=5432
-export PGUSER=postgres
-export PGPASSWORD=postgres
-export PGDATABASE=csvuploader
-```
+## 2. Ortam Değişkenleri
 
-Then install dependencies and start the server:
+Arka uç, aşağıdaki standart PostgreSQL ortam değişkenlerini kullanır.
 
-```bash
+**server/.env**
+PGHOST=localhost
+PGPORT=5432
+PGUSER=postgres
+PGPASSWORD=postgres
+PGDATABASE=csvuploader
+PORT=3000
+
+## 3. Backend'i Başlatma
+
 cd server
 npm install
 node index.js
-```
+
+Sunucu varsayılan olarak http://localhost:3000 üzeriden dinler
+
+## 4. Uygulamayı Kullanma
+Tarayıcıda http://localhost:3000 adresini açın.
+Login ekranında dilediğiniz kullanıcı adı/şifre ile giriş yapın.
+Açılan “CSV/TXT Uploader” arayüzünde:
+Template menüsünden bir şablon seçin.
+File bölümünden CSV veya TXT dosyanızı seçin.
+Check File düğmesine tıklayarak dosyayı şablonla karşılaştırın.
+Hata yoksa Upload to DB düğmesi etkinleşir; tıklayınca veri PostgreSQL’e eklenir.
+İşlem sonuçları ve hatalar “output” bölümünde gösterilir.
+
+## 5. Şablon Dosyaları
+Tüm şablonlar server/templates klasöründe .csv uzantılı olarak bulunur.
+Sunucu bu dosyaları okuyup her sütunun veri tipini (string, number, boolean) çıkarır.
+
+## 6. Özelleştirme
+Yeni bir şablon eklemek için server/templates altına uygun bir CSV dosyası koymanız yeterlidir.
+Çevresel değişkenlerle veritabanı bilgilerini, sunucu portunu, dosya kaydetme yollarını değiştirebilirsiniz.
+
+
+```bash
+docker run --name csv-uploader-postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=csvuploader \
+  -p 5432:5432 -d postgres

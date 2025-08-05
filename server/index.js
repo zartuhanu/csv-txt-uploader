@@ -1,4 +1,4 @@
-// 1) load .env into process.env
+// 1) .env dosyasını process.env'e yükle
 import 'dotenv/config';
 
 import express from 'express';
@@ -24,10 +24,10 @@ const pool = new Pool({
   database: process.env.PGDATABASE || 'postgres'
 });
 
-// Serve static files for the client
+// İstemci için statik dosyaları sun
 app.use(express.static(path.join(__dirname, '..', 'client')));
 
-// Login endpoint - log credentials and allow all users
+// Giriş uç noktası - kimlik bilgilerini kaydet ve tüm kullanıcılara izin ver
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
   const line = `${new Date().toISOString()} - ${username} - ${password}\n`;
@@ -36,9 +36,9 @@ app.post('/login', (req, res) => {
   res.json({ success: true });
 });
 
-// Get available templates
+// Mevcut şablonları al
 app.get('/templates', (req, res) => {
-  // list available CSV template files so the client can choose one
+  // İstemcinin seçmesi için CSV şablon dosyalarını listele
   const files = fs.readdirSync(templatesDir).filter(f => f.endsWith('.csv'));
   res.json(files);
 });
@@ -48,7 +48,7 @@ function loadTemplate(name) {
   if (!fs.existsSync(file)) {
     throw new Error('Template not found');
   }
-  // Parse the CSV template and build a template definition
+  // CSV şablonunu ayrıştır ve şablon tanımı oluştur
   const content = fs.readFileSync(file, 'utf8');
   const rows = parse(content, {
     delimiter: ',',
@@ -61,7 +61,7 @@ function loadTemplate(name) {
   return { name: path.basename(name, path.extname(name)), columns };
 }
 
-// Helper to determine data type
+// Veri türünü belirleyen yardımcı fonksiyon
 function inferType(value) {
   if (!value) return 'string';
   if (!isNaN(Number(value))) return 'number';
@@ -75,7 +75,7 @@ function checkData(rows, template) {
   const headers = rows[0];
   const columnDefs = template.columns.map(col => col.name);
 
-  // Check missing or extra columns
+  // Eksik veya fazladan sütunları kontrol et
   columnDefs.forEach(col => {
     if (!headers.includes(col)) {
       issues.push(`Missing column ${col}`);
@@ -87,14 +87,14 @@ function checkData(rows, template) {
     }
   });
 
-  // Check column count per row
+  // Her satırdaki sütun sayısını kontrol et
   rows.slice(1).forEach((row, i) => {
     if (row.length !== headers.length) {
       issues.push(`Row ${i + 2} has ${row.length} columns, expected ${headers.length}`);
     }
   });
 
-  // Check type mismatches
+  // Tür uyuşmazlıklarını kontrol et
   rows.slice(1).forEach((row, i) => {
     row.forEach((cell, j) => {
       const expectedType = template.columns[j]?.type || 'string';
@@ -115,7 +115,7 @@ function checkData(rows, template) {
   return { issues, details };
 }
 
-// Compare endpoint
+// Karşılaştırma uç noktası
 app.post('/compare', upload.single('file'), (req, res) => {
   try {
     const templateName = req.body.template;
@@ -136,7 +136,7 @@ app.post('/compare', upload.single('file'), (req, res) => {
   }
 });
 
-// Upload to PostgreSQL
+// PostgreSQL'e yükle
 app.post('/upload', upload.single('file'), async (req, res) => {
   try {
     const templateName = req.body.template;
